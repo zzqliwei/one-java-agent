@@ -23,6 +23,8 @@ public class TraditionalPluginConfigImpl extends PluginConfigImpl {
 
     private boolean appendToSystemClassLoaderSearch;
 
+    private boolean appendToBootstrapClassLoaderSearch;
+
     private String agentArgs;
 
 
@@ -37,6 +39,8 @@ public class TraditionalPluginConfigImpl extends PluginConfigImpl {
 
         this.appendToSystemClassLoaderSearch = this.propertyResolver.getProperty("appendToSystemClassLoaderSearch", Boolean.class, Boolean.TRUE);
 
+        this.appendToBootstrapClassLoaderSearch = this.propertyResolver.getProperty("appendToBootstrapClassLoaderSearch", Boolean.class, Boolean.FALSE);
+
     }
 
 
@@ -46,6 +50,10 @@ public class TraditionalPluginConfigImpl extends PluginConfigImpl {
 
     public boolean isAppendToSystemClassLoaderSearch() {
         return appendToSystemClassLoaderSearch;
+    }
+
+    public boolean isAppendToBootstrapClassLoaderSearch() {
+        return appendToBootstrapClassLoaderSearch;
     }
 
     public String getAgentArgs() {

@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Properties;
 import java.util.jar.JarFile;
+import java.util.jar.Manifest;
 
 import io.oneagent.plugin.classloader.PluginClassLoader;
 import io.oneagent.plugin.config.PluginConfig;
@@ -96,15 +97,29 @@ public class TraditionalPlugin implements Plugin {
             }
 
             Class<?> clazz = null;
-            if (this.pluginConfig.isAppendToSystemClassLoaderSearch()) {
-                this.instrumentation.appendToSystemClassLoaderSearch(new JarFile(agentJarFile));
-                this.parentClassLoader = ClassLoader.getSystemClassLoader();
-            } else {
-                this.parentClassLoader = new PluginClassLoader(new URL[] { agentJarFile.toURI().toURL() },
-                        this.getClass().getClassLoader());
+            if(this.pluginConfig.isAppendToSystemClassLoaderSearch()){
+                JarFile agentJar = null;
+                try {
+                    agentJar = new JarFile( agentJarFile, false);
+                    verifyJarManifestMainClassIsThis(agentJarFile, agentJar);
+                    instrumentation.appendToBootstrapClassLoaderSearch(agentJar);
+                    instrumentation.appendToSystemClassLoaderSearch(agentJar);
+                    clazz =  Class.forName(className,false,null);
+                } catch (IOException e) {
+                    throw new PluginException("agentJar",e);
+                }
+            }else{
+                if (this.pluginConfig.isAppendToSystemClassLoaderSearch()) {
+                    this.instrumentation.appendToSystemClassLoaderSearch(new JarFile(agentJarFile));
+                    this.parentClassLoader = ClassLoader.getSystemClassLoader();
+                } else {
+                    this.parentClassLoader = new PluginClassLoader(new URL[] { agentJarFile.toURI().toURL() },
+                            this.getClass().getClassLoader());
+                }
+
+                clazz = parentClassLoader.loadClass(className);
             }
 
-            clazz = parentClassLoader.loadClass(className);
 
             // 反射调用启动
             Method method = clazz.getMethod(methodName, String.class, Instrumentation.class);
@@ -113,6 +128,18 @@ public class TraditionalPlugin implements Plugin {
             throw new PluginException("start error, agent jar::" + agentJarFile, e);
         }
 
+    }
+
+    private static void verifyJarManifestMainClassIsThis(File jarFile, JarFile agentJar)
+            throws IOException {
+        Manifest manifest = agentJar.getManifest();
+        if (manifest.getMainAttributes().getValue("Premain-Class") == null) {
+            throw new IllegalStateException(
+                    "The agent was not installed, because the agent was found in '"
+                            + jarFile
+                            + "', which doesn't contain a Premain-Class manifest attribute. Make sure that you"
+                            + " haven't included the agent jar file inside of an application uber jar.");
+        }
     }
 
     @Override
